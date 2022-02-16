@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "pystm32ai"
+version = "0.2.0"
+license = "MIT"
+description = "Python Wrapper for stm32ai command line tool"
+authors = ["Thibaut VERCUEIL <thibaut.vercueil@pm.me>"]
+readme = "README.md"
+exclude = ["src/pystm32ai/exe/*"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+requests = "^2.27.1"
+tqdm = "^4.62.3"
+
+[tool.poetry.scripts]
+pystm32ai = "pystm32ai.stm32ai:run"
+
+[tool.poetry.dev-dependencies]
+pytest = "^5.2"
+pylint = "^2.12.2"
+black = {version = "^22.1.0", allow-prereleases = true}
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

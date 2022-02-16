@@ -1,0 +1,4 @@
+dist/
+src/pystm32ai/exe/*
+.vscode/
+**/__pycache__/
