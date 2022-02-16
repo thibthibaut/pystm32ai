@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pystm32ai"
-version = "0.2.0"
+version = "0.2.1"
 license = "MIT"
 description = "Python Wrapper for stm32ai command line tool"
 authors = ["Thibaut VERCUEIL <thibaut.vercueil@pm.me>"]
