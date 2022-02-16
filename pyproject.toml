@@ -1,11 +1,12 @@
 [tool.poetry]
 name = "pystm32ai"
-version = "0.2.1"
+version = "0.2.2"
 license = "MIT"
 description = "Python Wrapper for stm32ai command line tool"
 authors = ["Thibaut VERCUEIL <thibaut.vercueil@pm.me>"]
 readme = "README.md"
 exclude = ["src/pystm32ai/exe/*"]
+repository = "https://github.com/thibthibaut/pystm32ai"
 
 [tool.poetry.dependencies]
 python = "^3.8"
