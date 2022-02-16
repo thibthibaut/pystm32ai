@@ -95,7 +95,7 @@ def generate(
         model_path: path to a model (ONNX, h5 or TFLITE)
         allocate_inputs: whether to allocate input tensor with activations
         allocate_outputs: whether to allocate output tensor with activations
-        output_dir: Path to output directory (defualt current working directory)
+        output_dir: Path to output directory (default current working directory)
     """
     _check_and_download_executable()
     io_options = []
@@ -159,7 +159,7 @@ def run():
 
 def _check_and_download_executable():
     """
-    Checks for the stm32ai exectuable and downloads it if it doesn't exist
+    Checks for the stm32ai executable and downloads it if it doesn't exist
     """
     if os.path.exists(EXE_PATH):
         return

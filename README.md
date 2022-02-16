@@ -2,15 +2,15 @@
 
 A python wrapper for the `stm32ai` command-line tool to analyse deep learning models for STM32 microcontrollers.
 
-Disclamer: This project is not related to STMicroelecronics, it is as a wrapper around a component of [X-CUBE-AI](https://www.st.com/en/embedded-software/x-cube-ai.html) property of STMicroelecronics and licensed under SLA0048 (see more below).
+Disclaimer: This project is not related to STMicroelecronics, it is as a wrapper around a component of [X-CUBE-AI](https://www.st.com/en/embedded-software/x-cube-ai.html) property of STMicroelecronics and licensed under SLA0048 (see more below).
 
 ## How it works
 
-The API provide two functions : `analyse` and `generate`, the first one gives information about the size of a model and the second one can be used to generate C files to link with X-CUBE-AI runtime library (Not provided in this pakcage).
+The API provide two functions : `analyse` and `generate`, the first one gives information about the size of a model and the second one can be used to generate C files to link with X-CUBE-AI runtime library (Not provided in this package).
 
 The package doesn't include stm32ai executable so it will download and install it automatically on first call.
 
-A command line utility is also provided (`pystm32ai`), however it currently doesn't match the full fonctionnality provided by the original `stm32ai` executable.
+A command line utility is also provided (`pystm32ai`), however it currently doesn't match the full functionality provided by the original `stm32ai` executable.
 
 ## Installation
 
@@ -98,7 +98,7 @@ def generate(
         model_path: path to a model (ONNX, h5 or TFLITE)
         allocate_inputs: whether to allocate input tensor with activations
         allocate_outputs: whether to allocate output tensor with activations
-        output_dir: Path to output directory (defualt current working directory)
+        output_dir: Path to output directory (default current working directory)
     """
 ```
 
