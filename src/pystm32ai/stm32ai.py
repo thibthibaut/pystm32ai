@@ -14,6 +14,7 @@ import platform
 import argparse
 from zipfile import ZipFile
 import requests
+import shutil
 from tqdm import tqdm
 
 STM32AI_VERSION = "7.1.0"
@@ -27,6 +28,7 @@ EXE_PATH = os.path.join(DIR_PATH, "exe", STM32AI_VERSION, PLATFORM, EXE_NAME)
 EXE_URL = (
     f"https://sw-center.st.com/packs/x-cube-ai/stm32ai-{PLATFORM}-{STM32AI_VERSION}.zip"
 )
+DLL_EXT = "dll" if PLATFORM == "windows" else "so"
 
 
 def analyse(
@@ -87,7 +89,12 @@ def analyse(
 
 
 def generate(
-    model_path, allocate_inputs=True, allocate_outputs=False, name=None, output_dir="."
+    model_path,
+    allocate_inputs=True,
+    allocate_outputs=False,
+    name=None,
+    output_dir=".",
+    dll=False,
 ):
     """
     Generate a model C files to use in a STM32 application
@@ -96,6 +103,7 @@ def generate(
         allocate_inputs: whether to allocate input tensor with activations
         allocate_outputs: whether to allocate output tensor with activations
         output_dir: Path to output directory (default current working directory)
+        dll: Generate dynamic library to use the model on host
     """
     _check_and_download_executable()
     io_options = []
@@ -105,7 +113,10 @@ def generate(
         io_options.append("--allocate-outputs")
     if name:
         io_options.append("--name")
-        io_options.append("".join(name.split()))
+        name = "".join(name.split()).replace("-", "_")
+        io_options.append(name)
+    if dll:
+        io_options.append("--dll")
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         subprocess.run(
@@ -124,6 +135,19 @@ def generate(
             + io_options,
             check=True,
         )
+        if dll:
+            net_name = "network" if name == None else name
+            dll_name = f"libai_{net_name}.{DLL_EXT}"
+            shutil.copyfile(
+                os.path.join(
+                    tmp_dir,
+                    f"inspector_{net_name}",
+                    "workspace",
+                    "lib",
+                    dll_name,
+                ),
+                os.path.join(output_dir, dll_name),
+            )
 
 
 def run():

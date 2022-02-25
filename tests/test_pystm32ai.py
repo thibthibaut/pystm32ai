@@ -27,3 +27,22 @@ def test_generate_model():
         generate(os.path.join(DIR_PATH, "model_quant.tflite"), output_dir=tmp_dir)
         assert os.path.exists(os.path.join(tmp_dir, "network.c"))
         assert os.path.exists(os.path.join(tmp_dir, "network_data.c"))
+
+
+def test_generate_dll():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        generate(
+            os.path.join(DIR_PATH, "model_quant.tflite"), output_dir=tmp_dir, dll=True
+        )
+        assert os.path.exists(os.path.join(tmp_dir, "libai_network.so"))
+
+
+def test_generate_dll_with_name():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        generate(
+            os.path.join(DIR_PATH, "model_quant.tflite"),
+            output_dir=tmp_dir,
+            name="bobby",
+            dll=True,
+        )
+        assert os.path.exists(os.path.join(tmp_dir, "libai_bobby.so"))
