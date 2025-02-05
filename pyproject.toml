@@ -1,26 +1,32 @@
-[tool.poetry]
+[project]
 name = "pystm32ai"
-version = "0.3.1"
-license = "MIT"
-description = "Python Wrapper for stm32ai command line tool"
-authors = ["Thibaut VERCUEIL <thibaut.vercueil@pm.me>"]
+version = "1.0.1"
+license = { text = "MIT" }
+description = "Python Wrapper for stedgeai command line tool"
+authors = [
+    { name = "Thibaut VERCUEIL", email = "thibaut.vercueil@pm.me" }
+]
 readme = "README.md"
-exclude = ["src/pystm32ai/exe/*"]
-repository = "https://github.com/thibthibaut/pystm32ai"
+requires-python = ">=3.8"
+dependencies = [
+    "py7zr>=0.22.0",
+    "requests>=2.27.1",
+    "rich>=13.9.4",
+]
 
-[tool.poetry.dependencies]
-python = "^3.6.2"
-requests = "^2.27.1"
-tqdm = "^4.62.3"
-
-[tool.poetry.scripts]
+[project.scripts]
 pystm32ai = "pystm32ai.stm32ai:run"
 
-[tool.poetry.dev-dependencies]
-pytest = "^5.2"
-pylint = "^2.12.2"
-black = {version = "^22.1.0", allow-prereleases = true}
+[project.urls]
+repository = "https://github.com/thibthibaut/pystm32ai"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=5.2",
+    "pylint>=2.12.2",
+    "ruff>=0.9.0",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"

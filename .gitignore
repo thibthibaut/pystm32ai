@@ -1,4 +1,4 @@
 dist/
-src/pystm32ai/exe/*
+src/pystm32ai/assets/stedgeai/*
 .vscode/
 **/__pycache__/

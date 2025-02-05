@@ -2,37 +2,56 @@
 SPDX-License-Identifier: MIT
 Copyright 2022 - Thibaut Vercueil
 
-stm32ai module
-Wrapper around stm32ai executable
+stedgeai module
+Wrapper around stedgeai executable
 """
-import tempfile
-import subprocess
+
+from pathlib import Path
+from rich.console import Console
+from rich.table import Table
+from tqdm import tqdm
+from zipfile import ZipFile
+import argparse
+import inspect
 import json
 import os
-import stat
 import platform
-import argparse
-from zipfile import ZipFile
+import py7zr
 import requests
+import rich
 import shutil
-from tqdm import tqdm
+import subprocess
+import tempfile
 
-STM32AI_VERSION = "7.1.0"
+console = Console()
+
+STEDGEAI_VERSION = "2.0"
 PLATFORM = platform.system().lower()
 if PLATFORM == "darwin":
     PLATFORM = "mac"
 
-DIR_PATH = os.path.dirname(__file__)
-EXE_NAME = "stm32ai.exe" if PLATFORM == "windows" else "stm32ai"
-EXE_PATH = os.path.join(DIR_PATH, "exe", STM32AI_VERSION, PLATFORM, EXE_NAME)
-EXE_URL = (
-    f"https://sw-center.st.com/packs/x-cube-ai/stm32ai-{PLATFORM}-{STM32AI_VERSION}.zip"
+DIR_PATH = Path(__file__).parent
+ASSET_PATH = DIR_PATH / "assets"
+EXE_NAME = "stedgeai.exe" if PLATFORM == "windows" else "stedgeai"
+EXE_PATH = (
+    DIR_PATH
+    / "assets"
+    / "stedgeai"
+    / STEDGEAI_VERSION
+    / "Utilities"
+    / PLATFORM
+    / EXE_NAME
 )
 DLL_EXT = "dll" if PLATFORM == "windows" else "so"
-
+REL_URL = "https://github.com/thibthibaut/pystm32ai/releases/download/v0.2.1"
 
 def analyse(
-    model_path, allocate_inputs=True, allocate_outputs=False, full_report=False
+    model_path,
+    allocate_inputs=True,
+    allocate_outputs=True,
+    full_report=False,
+    optimization="balanced",
+    compression="lossless",
 ):
     """
     Analyse a model with CubeAI to get info about RAM, ROM and MACC
@@ -41,34 +60,43 @@ def analyse(
         allocate_inputs: whether to allocate input tensor with activations
         allocate_outputs: whether to allocate output tensor with activations
         full_report: Get a full report with per-layers information
+        optimization: Optimization strategy, can be none|lossless|low|medium|high
+        compression: Compression level, can be time|ram|balanced
     Returns:
         A report as a dictionary
     """
     _check_and_download_executable()
 
     io_options = []
-    if allocate_inputs:
-        io_options.append("--allocate-inputs")
-    if allocate_outputs:
-        io_options.append("--allocate-outputs")
+    if not allocate_inputs:
+        io_options.append("--no-inputs-allocation")
+    if not allocate_outputs:
+        io_options.append("--no-outputs-allocation")
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        subprocess.run(
-            [
-                EXE_PATH,
-                "analyse",
-                "-m",
-                model_path,
-                "-o",
-                tmp_dir,
-                "-w",
-                tmp_dir,
-                "-v",
-                "0",
-            ]
-            + io_options,
-            check=True,
-        )
+        with console.status("[blue]Analyzing model... Please wait...", spinner="dots"):
+            subprocess.run(
+                [
+                    EXE_PATH,
+                    "analyse",
+                    "--target",
+                    "stm32",
+                    "--optimization",
+                    optimization,
+                    "--compression",
+                    compression,
+                    "-m",
+                    model_path,
+                    "-o",
+                    tmp_dir,
+                    "-w",
+                    tmp_dir,
+                    "-v",
+                    "0",
+                ]
+                + io_options,
+                check=True,
+            )
         report_path = os.path.join(tmp_dir, "network_report.json")
         with open(report_path, "r", encoding="utf-8") as file:
             report = json.load(file)
@@ -91,7 +119,9 @@ def analyse(
 def generate(
     model_path,
     allocate_inputs=True,
-    allocate_outputs=False,
+    allocate_outputs=True,
+    optimization="balanced",
+    compression="lossless",
     name=None,
     output_dir=".",
     dll=False,
@@ -107,10 +137,10 @@ def generate(
     """
     _check_and_download_executable()
     io_options = []
-    if allocate_inputs:
-        io_options.append("--allocate-inputs")
-    if allocate_outputs:
-        io_options.append("--allocate-outputs")
+    if not allocate_inputs:
+        io_options.append("--no-inputs-allocation")
+    if not allocate_outputs:
+        io_options.append("--no-outputs-allocation")
     if name:
         io_options.append("--name")
         name = "".join(name.split()).replace("-", "_")
@@ -119,24 +149,33 @@ def generate(
         io_options.append("--dll")
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        subprocess.run(
-            [
-                EXE_PATH,
-                "generate",
-                "-m",
-                model_path,
-                "-o",
-                output_dir,
-                "-w",
-                tmp_dir,
-                "-v",
-                "0",
-            ]
-            + io_options,
-            check=True,
-        )
+        with console.status(
+            "[yellow]Generating model files... Please wait...", spinner="dots"
+        ):
+            subprocess.run(
+                [
+                    EXE_PATH,
+                    "generate",
+                    "--target",
+                    "stm32",
+                    "--optimization",
+                    optimization,
+                    "--compression",
+                    compression,
+                    "-m",
+                    model_path,
+                    "-o",
+                    output_dir,
+                    "-w",
+                    tmp_dir,
+                    "-v",
+                    "0",
+                ]
+                + io_options,
+                check=True,
+            )
         if dll:
-            net_name = "network" if name == None else name
+            net_name = "network" if name is None else name
             dll_name = f"libai_{net_name}.{DLL_EXT}"
             shutil.copyfile(
                 os.path.join(
@@ -150,22 +189,44 @@ def generate(
             )
 
 
+def bytes_to_kib(bytes_value):
+    """
+    Converts bytes to KiB
+    Args:
+        bytes_value: value in bytes
+    """
+    return f"{bytes_value / 1024:.2f} KiB"
+
+
 def run():
     """
     Run function to be called from command line usage
     """
     parser = argparse.ArgumentParser(
-        description="Python wrapper around stm32ai command line tool"
+        description="Python wrapper around stedgeai command line tool"
     )
     parser.add_argument(
-        "action", choices=["analyse", "generate"], help="Action to run on stm32ai"
+        "action", choices=["analyse", "generate"], help="Action to run on stedgeai"
     )
     parser.add_argument("model_path", help="Path to model")
+    parser.add_argument(
+        "--compression",
+        choices=["none", "lossless", "low", "medium", "high"],
+        help="Optimization strategy",
+        default="lossless",
+    )
+    parser.add_argument(
+        "--optimization",
+        choices=["time", "ram", "balanced"],
+        help="Optimization strategy",
+        default="balanced",
+    )
     parser.add_argument("--allocate-inputs", action="store_true", default=True)
-    parser.add_argument("--allocate-outputs", action="store_true", default=False)
+    parser.add_argument("--allocate-outputs", action="store_true", default=True)
     parser.add_argument("--full-report", action="store_true")
     parser.add_argument("--output_dir", default=".")
     parser.add_argument("--name", default=None, help="Name of the model")
+
     args = vars(parser.parse_args())
 
     action = args.pop("action")
@@ -173,35 +234,59 @@ def run():
         args.pop("output_dir")
         args.pop("name")
         model_report = analyse(**args)
-        print(json.dumps(model_report, indent=4))
+        if args.get("full_report"):
+            rich.print(json.dumps(model_report, indent=4))
+        else:
+            report_table = Table(title="Model Analysis Report", show_lines=True)
+            report_table.add_column("Metric", style="cyan", justify="left")
+            report_table.add_column("Value (Bytes)", style="magenta", justify="right")
+            report_table.add_column("Value (KiB)", style="green", justify="right")
+            report_table.add_row(
+                "ROM Size",
+                str(model_report["rom_size"]),
+                bytes_to_kib(model_report["rom_size"]),
+            )
+            report_table.add_row("ROM MACC", str(model_report["rom_n_macc"]), "N/A")
+            report_table.add_row(
+                "RAM Size",
+                str(model_report["ram_size"]),
+                bytes_to_kib(model_report["ram_size"]),
+            )
+            report_table.add_row(
+                "RAM IO Size",
+                str(sum(model_report["ram_io_size"])),
+                bytes_to_kib(sum(model_report["ram_io_size"])),
+            )
+            report_table.add_row(
+                "Model Size",
+                str(model_report["model_size"]),
+                bytes_to_kib(model_report["model_size"]),
+            )
+            console.print(report_table)
     if action == "generate":
         args.pop("full_report")
-        print("Generating C files for model...")
         generate(**args)
-        print("Done.")
 
 
 def _check_and_download_executable():
     """
-    Checks for the stm32ai executable and downloads it if it doesn't exist
+    Checks for the stedgeai executable and downloads it if it doesn't exist
     """
-    if os.path.exists(EXE_PATH):
+    p = inspect.currentframe().f_code.co_name[::-1]
+    if EXE_PATH.exists():
         return
-    print("Didn't find stm32ai executable, downloading it")
     # Create a directory with cubeAI version under exe directory
-    try:
-        os.mkdir(os.path.join(DIR_PATH, "exe", STM32AI_VERSION))
-    except OSError:
-        ...
+    EXE_PATH.parent.mkdir(exist_ok=True, parents=True)
+    AR_PATH = EXE_PATH.parents[4] / "stedgeai.7z"
+    OUT_PATH = EXE_PATH.parents[4]
 
-    # Download the file in a temporary directory and unzip it
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        zip_path = os.path.join(tmp_dir, "stm32ai.zip")
-        _download(EXE_URL, zip_path)
-        _unzip(zip_path, os.path.join(DIR_PATH, "exe", STM32AI_VERSION))
-
-    os.chmod(EXE_PATH, stat.S_IREAD | stat.S_IWRITE | stat.S_IEXEC)
-
+    with console.status("[green]Preparing stedgeai... Please wait...", spinner="dots"):
+        _download(
+            f"{REL_URL}/stedgeai.7z",
+            str(AR_PATH),
+        )
+        with py7zr.SevenZipFile(AR_PATH, mode="r", password=p) as z:
+            z.extractall(OUT_PATH)
 
 def _download(url, fname):
     """
@@ -211,17 +296,9 @@ def _download(url, fname):
         fname: Path of the file to be downloaded
     """
     resp = requests.get(url, stream=True)
-    total = int(resp.headers.get("content-length", 0))
-    with open(fname, "wb") as file, tqdm(
-        desc=fname,
-        total=total,
-        unit="iB",
-        unit_scale=True,
-        unit_divisor=1024,
-    ) as tqbar:
+    with open(fname, "wb") as file:
         for data in resp.iter_content(chunk_size=1024):
-            size = file.write(data)
-            tqbar.update(size)
+            file.write(data)
 
 
 def _unzip(fname, directory):
@@ -238,7 +315,6 @@ def _unzip(fname, directory):
             total=len(zip_file.namelist()),
         ):
             zip_file.extract(member=file, path=directory)
-
 
 if __name__ == "__main__":
     run()
